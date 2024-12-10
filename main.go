@@ -38,6 +38,9 @@ type playerState int
 const (
 	stopped playerState = iota
 	playing
+	titleWidth = 30
+	genreWidth = 25
+	statsWidth = 10
 )
 
 // model represents the application state
@@ -73,7 +76,9 @@ func initialModel() model {
 // Message types
 type channelsMsg []Channel
 type errMsg struct{ error }
-type startPlaybackMsg struct{}
+type startPlaybackMsg struct {
+	player *exec.Cmd
+}
 type stopPlaybackMsg struct{}
 type playbackErrorMsg struct{ error }
 
@@ -131,7 +136,7 @@ func startPlayback(streamURL string) tea.Cmd {
 		if err := cmd.Start(); err != nil {
 			return playbackErrorMsg{err}
 		}
-		return startPlaybackMsg{}
+		return startPlaybackMsg{cmd}
 	}
 }
 
@@ -175,9 +180,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "enter", " ":
-			if m.playerState == playing {
+			if m.playerState == playing && m.selected == &m.channels[m.cursor] {
 				m.selected = nil
 				return m, stopPlayback(m.player)
+			}
+
+			var cmds []tea.Cmd
+			if m.player != nil {
+				cmds = append(cmds, stopPlayback(m.player))
 			}
 
 			m.selected = &m.channels[m.cursor]
@@ -188,11 +198,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			return m, startPlayback(streamURL)
+			cmds = append(cmds, startPlayback(streamURL))
+			return m, tea.Sequence(cmds...)
 		}
 
 	case startPlaybackMsg:
 		m.playerState = playing
+		m.player = msg.player
 
 	case stopPlaybackMsg:
 		m.playerState = stopped
@@ -227,15 +239,27 @@ func (m model) View() string {
 	s := titleStyle.Render("🎵 SomaFM Channels\n\n")
 
 	for i, channel := range m.channels {
-		cursor := " "
+		cursor := "  "
 		if i == m.cursor {
-			cursor = ">"
+			cursor = "> "
 		}
 
-		line := fmt.Sprintf("%s %s - %s (%d listeners)\n",
+		title := channel.Title
+		if len(title) > titleWidth-3 {
+			title = title[:titleWidth-3] + "..."
+		}
+		title = fmt.Sprintf("%-*s", titleWidth, title)
+
+		genre := channel.Genre
+		if len(genre) > genreWidth-3 {
+			genre = genre[:genreWidth-3] + "..."
+		}
+		genre = fmt.Sprintf("%-*s", genreWidth, genre)
+
+		line := fmt.Sprintf("%s%s %s [%d]\n",
 			cursor,
-			channel.Title,
-			channel.Genre,
+			title,
+			genre,
 			channel.Listeners)
 
 		if i == m.cursor {
