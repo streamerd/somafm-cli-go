@@ -1,8 +1,8 @@
-# SomaFM CLI Player
+# SomaFM Terminal Player
 
 A terminal-based SomaFM radio player built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
-![SomaFM CLI Screenshot](screenshots/0.png)
+![SomaFM CLI Screenshot](screenshots/1.png)
 
 ## Features
 
